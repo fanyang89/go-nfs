@@ -38,6 +38,7 @@ func onLookup(ctx context.Context, w *response, userHandle Handler) error {
 	if err != nil {
 		return &NFSStatusError{NFSStatusStale, err}
 	}
+
 	dirInfo, err := fs.Lstat(fs.Join(p...))
 	if err != nil || !dirInfo.IsDir() {
 		return &NFSStatusError{NFSStatusNotDir, err}
@@ -49,24 +50,30 @@ func onLookup(ctx context.Context, w *response, userHandle Handler) error {
 		if err != nil {
 			return &NFSStatusError{NFSStatusServerFault, err}
 		}
+
 		if err := w.Write(resp); err != nil {
 			return &NFSStatusError{NFSStatusServerFault, err}
 		}
+
 		return nil
 	}
+
 	if bytes.Equal(obj.Filename, []byte("..")) {
 		if len(p) == 0 {
 			return &NFSStatusError{NFSStatusAccess, os.ErrPermission}
 		}
+
 		pPath := p[0 : len(p)-1]
 		pHandle := userHandle.ToHandle(fs, pPath)
 		resp, err := lookupSuccessResponse(pHandle, pPath, p, fs)
 		if err != nil {
 			return &NFSStatusError{NFSStatusServerFault, err}
 		}
+
 		if err := w.Write(resp); err != nil {
 			return &NFSStatusError{NFSStatusServerFault, err}
 		}
+
 		return nil
 	}
 
@@ -80,6 +87,7 @@ func onLookup(ctx context.Context, w *response, userHandle Handler) error {
 	if err != nil {
 		return &NFSStatusError{NFSStatusServerFault, err}
 	}
+
 	if err := w.Write(resp); err != nil {
 		return &NFSStatusError{NFSStatusServerFault, err}
 	}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 
+	"github.com/rs/zerolog/log"
 	"github.com/willscott/go-nfs-client/nfs/xdr"
 )
 
@@ -27,6 +28,9 @@ func onMount(ctx context.Context, w *response, userHandle Handler) error {
 	if err != nil {
 		return err
 	}
+
+	log.Info().Str("dirpath", string(dirpath)).Msg("Mounting")
+
 	mountReq := MountRequest{Header: w.req.Header, Dirpath: dirpath}
 	status, handle, flavors := userHandle.Mount(ctx, w.conn, mountReq)
 
@@ -45,6 +49,7 @@ func onMount(ctx context.Context, w *response, userHandle Handler) error {
 		_ = xdr.Write(writer, rootHndl)
 		_ = xdr.Write(writer, flavors)
 	}
+
 	return w.Write(writer.Bytes())
 }
 

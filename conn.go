@@ -11,6 +11,7 @@ import (
 	"net"
 
 	xdr2 "github.com/rasky/go-xdr/xdr2"
+	"github.com/rs/zerolog/log"
 	"github.com/willscott/go-nfs-client/nfs/rpc"
 	"github.com/willscott/go-nfs-client/nfs/xdr"
 )
@@ -114,24 +115,28 @@ func (c *conn) serializeWrites(ctx context.Context) {
 // Handle a request. errors from this method indicate a failure to read or
 // write on the network stream, and trigger a disconnection of the connection.
 func (c *conn) handle(ctx context.Context, w *response) error {
-	handler := c.Server.handlerFor(w.req.Header.Prog, w.req.Header.Proc)
-	if handler == nil {
+	handleCtx := c.Server.handlerFor(w.req.Header.Prog, w.req.Header.Proc)
+	if handleCtx == nil {
 		Log.Errorf("No handler for %d.%d", w.req.Header.Prog, w.req.Header.Proc)
 		if err := w.drain(ctx); err != nil {
 			return err
 		}
 		return c.err(ctx, w, &ResponseCodeProcUnavailableError{})
 	}
-	appError := handler(ctx, w, c.Server.Handler)
+	log.Info().Str("handler", handleCtx.ID.String()).Msg("handling")
+
+	appError := handleCtx.Fn(ctx, w, c.Server.Handler)
 	if drainErr := w.drain(ctx); drainErr != nil {
 		return drainErr
 	}
+
 	if appError != nil && !w.responded {
-		Log.Errorf("call to %+v failed: %v", handler, appError)
+		Log.Errorf("call to %v failed: %v", handleCtx.ID.String(), appError)
 		if err := c.err(ctx, w, appError); err != nil {
 			return err
 		}
 	}
+
 	if !w.responded {
 		Log.Errorf("Handler did not indicate response status via writing or erroring")
 		if err := c.err(ctx, w, &ResponseCodeSystemError{}); err != nil {
